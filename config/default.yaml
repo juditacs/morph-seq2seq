@@ -1,0 +1,7 @@
+batch_size: 64
+bi_encoder: true
+layers: 2
+dropout_prob: 0.2
+cell_type: LSTM
+cell_size: 8
+time_major: true
