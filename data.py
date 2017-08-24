@@ -13,7 +13,7 @@ class Dataset(object):
     PAD = 0
     SOS = 1
     EOS = 2
-    UNK = -1
+    UNK = 4 
     constants = ['UNK', 'PAD', 'SOS', 'EOS']
 
     hu_alphabet = list("aábcdeéfghiíjklmnoóöőpqrstuúüűvwxyz-.")
@@ -23,6 +23,8 @@ class Dataset(object):
     def __init__(self, config):
         self.config = config
         self.create_vocabs()
+        self.create_tables()
+        self.load_and_preprocess_data()
 
     def create_vocabs(self):
         """Create vocabularies via one of three ways
@@ -33,11 +35,12 @@ class Dataset(object):
         self.__create_vocab('src_vocab')
         if self.config.share_vocab:
             self.tgt_vocab = self.src_vocab
+            self.tgt_vocab_size = self.src_vocab_size
         else:
             self.__create_vocab('tgt_vocab')
 
     def __create_vocab(self, attr_name):
-        vocab_fn = attr_name = '_file'
+        vocab_fn = attr_name + '_file'
         if hasattr(self.config, vocab_fn):
             with open(getattr(self.config, vocab_fn)) as f:
                 vocab = Dataset.constants + [l.rstrip() for l in f]
@@ -51,12 +54,12 @@ class Dataset(object):
 
     def create_tables(self):
         self.src_table = lookup_ops.index_table_from_tensor(
-            tf.contant(self.src_vocab), default_value=Dataset.UNK)
+            tf.constant(self.src_vocab), default_value=Dataset.UNK)
         if self.config.share_vocab:
             self.tgt_table = self.src_table
         else:
             self.tgt_table = lookup_ops.index_table_from_tensor(
-                tf.contant(self.tgt_vocab), default_value=Dataset.UNK)
+                tf.constant(self.tgt_vocab), default_value=Dataset.UNK)
 
     def load_and_preprocess_data(self):
         self.train = self.__load_data(self.config.train_file)

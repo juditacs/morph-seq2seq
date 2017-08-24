@@ -5,3 +5,7 @@ dropout_prob: 0.2
 cell_type: LSTM
 cell_size: 8
 time_major: true
+attention: null
+optimizer: MomentumOptimizer
+optimizer_kwargs:
+    momentum: 0.5

@@ -30,3 +30,6 @@ class Config(object):
             setattr(self, param, val)
         for param, val in kwargs.items():
             setattr(self, param, val)
+
+    def validate(self):
+        assert self.attention in ('luong', 'scaled_luong', 'bahdanau', None)
