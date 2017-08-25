@@ -13,8 +13,8 @@ class Dataset(object):
     PAD = 0
     SOS = 1
     EOS = 2
-    UNK = 4 
-    constants = ['UNK', 'PAD', 'SOS', 'EOS']
+    UNK = 4
+    constants = ['PAD', 'SOS', 'EOS', 'UNK']
 
     hu_alphabet = list("aábcdeéfghiíjklmnoóöőpqrstuúüűvwxyz-.")
 
@@ -65,6 +65,8 @@ class Dataset(object):
         self.train = self.__load_data(self.config.train_file)
         if hasattr(self.config, 'dev_file'):
             self.dev = self.__load_data(self.config.dev_file)
+        if hasattr(self.config, 'test_file'):
+            self.test = self.__load_data(self.config.test_file)
 
     def __load_data(self, fn):
         dataset = tf.contrib.data.TextLineDataset(fn)
@@ -103,7 +105,7 @@ class Dataset(object):
                 tf.TensorShape([None]),
                 tf.TensorShape([]),
                 tf.TensorShape([]),
-            )
+            ),
         )
         batched_iter = batched.make_initializable_iterator()
         s = batched_iter.get_next()
@@ -121,3 +123,9 @@ class Dataset(object):
         session.run(self.train['batched_iter'].initializer)
         if hasattr(self.config, 'dev_file'):
             session.run(self.dev['batched_iter'].initializer)
+        if hasattr(self.config, 'test_file'):
+            session.run(self.test['batched_iter'].initializer)
+
+    def create_inverse_vocabs(self):
+        self.src_inv_vocab = {i: c for i, c in enumerate(self.src_vocab)}
+        self.tgt_inv_vocab = {i: c for i, c in enumerate(self.tgt_vocab)}

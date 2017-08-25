@@ -9,3 +9,6 @@ attention: null
 optimizer: MomentumOptimizer
 optimizer_kwargs:
     momentum: 0.5
+save_all_gradients: false
+generate_log_dir: true
+test_size: derive

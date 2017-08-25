@@ -23,11 +23,10 @@ def main():
     config = Config.from_yaml(args.config)
     dataset = Dataset(config)
     model = Seq2seqTrainModel(config, dataset)
-    model.init_session()
-    model.train(300, 0.1)
-
+    model.run_experiment()
 
 if __name__ == '__main__':
     import logging
-    logging.getLogger().setLevel(logging.INFO)
+    log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
+    logging.basicConfig(level=logging.INFO, format=log_fmt)
     main()
