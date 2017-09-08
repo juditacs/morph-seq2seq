@@ -218,7 +218,7 @@ class Seq2seqTrainModel(object):
         # train
         for step in self.config.train_schedule:
             logging.info("Running training step {}".format(step))
-            self.train_epochs(step['epochs'], step['learning_rate'])
+            self.train_epochs(**step)
         logging.info("Greedy decoding")
         # test
         self.do_greedy_decode()
