@@ -22,6 +22,7 @@ class Config(object):
         'time_major', 'attention', 'optimizer', 'optimizer_kwargs', 'log_dir',
         'train_schedule', 'save_all_gradients', 'generate_log_dir',
         'test_size', 'src_vocab_file', 'tgt_vocab_file', 'infer_vocab',
+        'early_stopping',
     )
     default_fn = os.path.join('config', 'default.yaml')
 
@@ -63,6 +64,6 @@ class Config(object):
                 ', '.join(map(str, att_types))))
 
     def save(self, fn):
-        d = {k: getattr(self, k) for k in self.__slots__}
+        d = {k: getattr(self, k, None) for k in self.__slots__}
         with open(fn, 'w') as f:
             yaml.dump(d, f)

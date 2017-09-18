@@ -224,6 +224,8 @@ class Seq2seqTrainModel(object):
     def train_epochs(self, epochs, learning_rate, logstep=0):
         logstep = int(epochs // 10) if logstep == 0 else logstep
         tensorboard_step = 10
+        early_cnt = self.config.early_stopping['patience']
+        th = self.config.early_stopping['threshold']
         for i in range(epochs):
             _, train_loss, s = self.sess.run(
                 [self.train_graph.update, self.train_graph.loss, self.merged_summary],
@@ -236,16 +238,28 @@ class Seq2seqTrainModel(object):
             if i % logstep == logstep - 1:
                 logging.info('Iter {}, train loss: {}, val loss: {}'.format(
                     i+1, train_loss, val_loss))
+            if len(self.val_loss) > 1 and abs(self.val_loss[-1] - self.val_loss[-2]) < th:
+                early_cnt -= 1
+                if early_cnt == 0:
+                    self.early_stopped = True
+                    return
+            else:
+                early_cnt = self.config.early_stopping['patience']
 
     def run_experiment(self):
         self.train_loss = []
         self.val_loss = []
         self.init_session()
+        self.early_stopped = False
         logging.info("Session initialized")
         # train
         for step in self.config.train_schedule:
             logging.info("Running training step {}".format(step))
             self.train_epochs(**step)
+            if self.early_stopped:
+                logging.info("Early stopping after {} iteration".format(
+                    len(self.val_loss)))
+                break
         logging.info("Greedy decoding")
         # test
         self.do_greedy_decode()
