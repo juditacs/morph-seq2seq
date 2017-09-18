@@ -21,7 +21,7 @@ class Config(object):
         'bi_encoder', 'layers', 'dropout_prob', 'cell_type', 'cell_size',
         'time_major', 'attention', 'optimizer', 'optimizer_kwargs', 'log_dir',
         'train_schedule', 'save_all_gradients', 'generate_log_dir',
-        'test_size', 'src_vocab_file', 'tgt_vocab_file',
+        'test_size', 'src_vocab_file', 'tgt_vocab_file', 'infer_vocab',
     )
     default_fn = os.path.join('config', 'default.yaml')
 

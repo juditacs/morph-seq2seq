@@ -12,3 +12,4 @@ optimizer_kwargs:
 save_all_gradients: false
 generate_log_dir: true
 test_size: derive
+infer_vocab: false

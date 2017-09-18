@@ -27,17 +27,41 @@ class Dataset(object):
         self.load_and_preprocess_data()
 
     def create_vocabs(self):
-        """Create vocabularies via one of three ways
+        """Create vocabularies via one of four ways
         1. read from file
         2. read from config directly
         3. use defaults - Hungarian alphabet
+        4. infer from training data
         """
+        if self.config.infer_vocab:
+            self.infer_vocab_from_train()
+            return
         self.__create_vocab('src_vocab')
         if self.config.share_vocab:
             self.tgt_vocab = self.src_vocab
             self.tgt_vocab_size = self.src_vocab_size
         else:
             self.__create_vocab('tgt_vocab')
+
+    def infer_vocab_from_train(self):
+        src_abc = set()
+        if self.config.share_vocab:
+            tgt_abc = src_abc
+        else:
+            tgt_abc = set()
+        with open(self.config.train_file) as f:
+            for line in f:
+                enc, dec = line.rstrip('\n').split('\t')
+                src_abc |= set(enc.split(' '))
+                tgt_abc |= set(dec.split(' '))
+        self.src_vocab = Dataset.constants + list(src_abc)
+        self.src_vocab_size = len(self.src_vocab)
+        if self.config.share_vocab:
+            self.tgt_vocab = self.src_vocab
+            self.tgt_vocab_size = self.src_vocab_size
+        else:
+            self.tgt_vocab = Dataset.constants + list(tgt_abc)
+            self.tgt_vocab_size = len(self.tgt_vocab)
 
     def __create_vocab(self, attr_name):
         vocab_fn = attr_name + '_file'
