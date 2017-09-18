@@ -8,14 +8,15 @@
 import os
 import yaml
 import logging
+from collections import namedtuple
 import tensorflow as tf
 from tensorflow.python.layers import core as layers_core
 
 
-class Graph(object):
-    def __init__(self, **kwargs):
-        for param, value in kwargs.items():
-            setattr(self, param, value)
+Seq2seqEmbedding = namedtuple("Seq2seqEmbedding", ["enc_emb_inp", "dec_emb_inp", "src_embedding", "tgt_embedding"])
+Seq2seqEncoder = namedtuple("Seq2seqEncoder", ["encoder_outputs", "encoder_state"])
+Seq2seqDecoder = namedtuple("Seq2seqGraph", ["logits", "dec_init_state", "output_proj", "decoder_cell"])
+Seq2seqGraph = namedtuple("Seq2seqGraph", ["learning_rate", "loss", "update", "greedy_outputs"])
 
 
 class Seq2seqTrainModel(object):
@@ -25,10 +26,12 @@ class Seq2seqTrainModel(object):
         self.create_model()
 
     def create_model(self):
-        self.train_graph = self.create_graph(reuse=False,
-                                             data=self.dataset.train)
-        self.valid_graph = self.create_graph(reuse=True, data=self.dataset.dev)
-        self.test_graph = self.create_graph(reuse=True, data=self.dataset.test, build_inf=True)
+        self.train_graph = self.create_graph(
+            reuse=False, data=self.dataset.train)
+        self.valid_graph = self.create_graph(
+            reuse=True, data=self.dataset.dev)
+        self.test_graph = self.create_graph(
+            reuse=True, data=self.dataset.test, build_inf=True)
 
     def create_cell(self, scope, reuse):
         with tf.variable_scope(scope, reuse=reuse):
@@ -40,6 +43,13 @@ class Seq2seqTrainModel(object):
             return cell
 
     def create_graph(self, reuse, data, build_inf=False):
+        emb_inp = self.create_embedding_input(data, reuse=reuse)
+        encoder = self.create_encoder(emb_inp, data, reuse)
+        decoder = self.create_decoder(emb_inp, encoder, data, reuse)
+        graph = self.create_train_ops(emb_inp, decoder, data, reuse, build_inf)
+        return graph
+
+    def create_embedding_input(self, data, reuse):
         with tf.variable_scope("embedding", reuse=reuse):
             src_embedding = tf.get_variable(
                 "src_embedding",
@@ -58,7 +68,14 @@ class Seq2seqTrainModel(object):
             if self.config.time_major:
                 enc_emb_inp = tf.transpose(enc_emb_inp, [1, 0, 2])
                 dec_emb_inp = tf.transpose(dec_emb_inp, [1, 0, 2])
+            return Seq2seqEmbedding(
+                enc_emb_inp=enc_emb_inp,
+                dec_emb_inp=dec_emb_inp,
+                src_embedding=src_embedding,
+                tgt_embedding=tgt_embedding,
+            )
 
+    def create_encoder(self, encoder, data, reuse):
         with tf.variable_scope("encoder", reuse=reuse):
             if self.config.bi_encoder:
                 fw_cells = []
@@ -69,7 +86,7 @@ class Seq2seqTrainModel(object):
                 fw_cell = tf.contrib.rnn.MultiRNNCell(fw_cells)
                 bw_cell = tf.contrib.rnn.MultiRNNCell(bw_cells)
                 o, e = tf.nn.bidirectional_dynamic_rnn(
-                    fw_cell, bw_cell, enc_emb_inp, dtype='float32',
+                    fw_cell, bw_cell, encoder.enc_emb_inp, dtype='float32',
                     sequence_length=data['src_size'], time_major=self.config.time_major
                 )
                 encoder_outputs = tf.concat(o, -1)
@@ -81,13 +98,15 @@ class Seq2seqTrainModel(object):
             else:
                 cell = self.create_cell("encoder", reuse)
                 o, e = tf.nn.dynamic_rnn(
-                    cell, enc_emb_inp, dtype='float32',
+                    cell, encoder.enc_emb_inp, dtype='float32',
                     sequence_length=data['src_size'],
                     time_major=self.config.time_major
                 )
                 encoder_outputs = o
                 encoder_state = e
+            return Seq2seqEncoder(encoder_outputs=encoder_outputs, encoder_state=encoder_state)
 
+    def create_decoder(self, embedding, encoder, data, reuse):
         with tf.variable_scope("decoder", reuse=reuse) as scope:
             if self.config.bi_encoder:
                 decoder_cells = [self.create_cell("decoder", reuse)
@@ -96,9 +115,9 @@ class Seq2seqTrainModel(object):
             else:
                 decoder_cell = self.create_cell("decoder", reuse)
             if self.config.time_major:
-                attention_states = tf.transpose(encoder_outputs, [1, 0, 2])
+                attention_states = tf.transpose(encoder.encoder_outputs, [1, 0, 2])
             else:
-                attention_states = encoder_outputs
+                attention_states = encoder.encoder_outputs
             if self.config.attention == 'luong':
                 mechanism = tf.contrib.seq2seq.LuongAttention(
                     self.config.cell_size, attention_states,
@@ -123,11 +142,11 @@ class Seq2seqTrainModel(object):
             )
             size_dim = 1 if self.config.time_major else 0
             dec_init_state = decoder_cell.zero_state(
-                tf.shape(dec_emb_inp)[size_dim],
-                tf.float32).clone(cell_state=encoder_state)
+                tf.shape(embedding.dec_emb_inp)[size_dim],
+                tf.float32).clone(cell_state=encoder.encoder_state)
 
             helper = tf.contrib.seq2seq.TrainingHelper(
-                dec_emb_inp, data['tgt_size'],
+                embedding.dec_emb_inp, data['tgt_size'],
                 time_major=self.config.time_major)
             decoder = tf.contrib.seq2seq.BasicDecoder(
                 decoder_cell, helper, dec_init_state
@@ -139,10 +158,17 @@ class Seq2seqTrainModel(object):
             output_proj = layers_core.Dense(self.dataset.tgt_vocab_size,
                                             name="output_proj")
             logits = output_proj(outputs.rnn_output)
+            return Seq2seqDecoder(
+                logits=logits,
+                dec_init_state=dec_init_state,
+                output_proj=output_proj,
+                decoder_cell=decoder_cell,
+            )
 
+    def create_train_ops(self, embedding, decoder, data, reuse, build_inf):
         with tf.variable_scope("train", reuse=reuse):
             if self.config.time_major:
-                logits = tf.transpose(logits, [1, 0, 2])
+                logits = tf.transpose(decoder.logits, [1, 0, 2])
             xent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=data['tgt_out_ids'], logits=logits)
             target_weights = tf.sequence_mask(
@@ -169,21 +195,22 @@ class Seq2seqTrainModel(object):
         if build_inf:
             with tf.variable_scope("greedy_decoder", reuse=reuse):
                 g_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-                    tgt_embedding, tf.fill([self.config.batch_size], self.dataset.SOS), self.dataset.EOS)
+                    embedding.tgt_embedding, tf.fill([self.config.batch_size], self.dataset.SOS), self.dataset.EOS)
                 g_decoder = tf.contrib.seq2seq.BasicDecoder(
-                    decoder_cell, g_helper, dec_init_state, output_layer=output_proj)
+                    decoder.decoder_cell, g_helper, decoder.dec_init_state, output_layer=decoder.output_proj)
                 g_outputs = tf.contrib.seq2seq.dynamic_decode(
                     g_decoder, maximum_iterations=self.config.tgt_maxlen)[0]
-            return Graph(
+            return Seq2seqGraph(
                 learning_rate=learning_rate,
                 loss=loss,
                 update=update,
                 greedy_outputs=g_outputs,
             )
-        return Graph(
+        return Seq2seqGraph(
             learning_rate=learning_rate,
             loss=loss,
             update=update,
+            greedy_outputs=None,
         )
 
     def init_session(self):
