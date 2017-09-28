@@ -5,6 +5,8 @@
 # Copyright © 2017 Judit Acs <judit@sch.bme.hu>
 #
 # Distributed under terms of the MIT license.
+import os
+
 import tensorflow as tf
 from tensorflow.python.ops import lookup_ops
 
@@ -153,3 +155,70 @@ class Dataset(object):
     def create_inverse_vocabs(self):
         self.src_inv_vocab = {i: c for i, c in enumerate(self.src_vocab)}
         self.tgt_inv_vocab = {i: c for i, c in enumerate(self.tgt_vocab)}
+
+    def save_vocabs(self):
+        with open(os.path.join(self.config.log_dir, 'src_vocab'), 'w') as f:
+            f.write('\n'.join(self.src_vocab))
+        with open(os.path.join(self.config.log_dir, 'tgt_vocab'), 'w') as f:
+            f.write('\n'.join(self.tgt_vocab))
+
+
+class InferenceDataset(Dataset):
+    def __init__(self, config):
+        self.config = config
+        self.create_tables()
+        self.test = self.load_and_preprocess_data()
+
+    def create_tables(self):
+        with open(os.path.join(self.config.config_dir, 'src_vocab')) as f:
+            self.src_vocab = [l.rstrip('\n') for l in f]
+            self.src_table = lookup_ops.index_table_from_tensor(
+                tf.constant(self.src_vocab), default_value=Dataset.UNK)
+            self.src_vocab_size = len(self.src_vocab)
+        with open(os.path.join(self.config.config_dir, 'tgt_vocab')) as f:
+            self.tgt_vocab = [l.rstrip('\n') for l in f]
+            self.tgt_table = lookup_ops.index_table_from_tensor(
+                tf.constant(self.tgt_vocab), default_value=Dataset.UNK)
+            self.tgt_vocab_size = len(self.tgt_vocab)
+
+    def load_and_preprocess_data(self):
+        dataset = tf.contrib.data.TextLineDataset(self.config.test_fn)
+        dataset = dataset.map(lambda s: tf.string_split(
+            [s], delimiter='\t').values[0])
+        dataset = dataset.map(lambda s: tf.string_split(
+            [s], delimiter=' ').values)
+        dataset = dataset.map(lambda words: self.src_table.lookup(words))
+        dataset = dataset.map(
+            lambda src: (
+                src[:self.config.src_maxlen],
+                tf.concat(([Dataset.SOS], [0]), 0),
+                tf.concat(([0], [Dataset.EOS]), 0),
+            )
+        )
+        dataset = dataset.map(
+            lambda src, tgt_in, tgt_out:
+                (src, tgt_in, tgt_out, tf.size(src), tf.size(tgt_in)))
+        batched = dataset.padded_batch(
+            self.config.batch_size,
+            padded_shapes=(
+                tf.TensorShape([self.config.src_maxlen]),
+                tf.TensorShape([self.config.tgt_maxlen+2]),
+                tf.TensorShape([None]),
+                tf.TensorShape([]),
+                tf.TensorShape([]),
+            ),
+        )
+        batched_iter = batched.make_initializable_iterator()
+        s = batched_iter.get_next()
+        return {
+            'src_ids': s[0],
+            'tgt_in_ids': s[1],
+            'tgt_out_ids': s[2],
+            'src_size': s[3],
+            'tgt_size': s[4],
+            'batched_iter': batched_iter,
+        }
+
+    def run_initializers(self, session):
+        session.run(tf.tables_initializer())
+        session.run(self.test['batched_iter'].initializer)
