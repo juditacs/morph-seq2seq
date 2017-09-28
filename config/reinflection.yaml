@@ -1,0 +1,33 @@
+train_file: /mnt/permanent/home/judit/projects/ulm/dat/sigmorphon2016/s2s_input/hungarian-task2-train-standard
+dev_file: /mnt/permanent/home/judit/projects/ulm/dat/sigmorphon2016/s2s_input/hungarian-task2-dev-standard
+test_file: /mnt/permanent/home/judit/projects/ulm/dat/sigmorphon2016/s2s_input/hungarian-task2-test-standard
+# src_vocab_file: /mnt/permanent/home/judit/projects/ulm/dat/sigmorphon2016/s2s_input/hungarian-task2-train-standard.src_vocab
+# tgt_vocab_file: /mnt/permanent/home/judit/projects/ulm/dat/sigmorphon2016/s2s_input/hungarian-task2-train-standard.tgt_vocab
+infer_vocab: true
+share_vocab: true
+src_maxlen: 50
+tgt_maxlen: 33
+src_embedding_dim: 10
+tgt_embedding_dim: 10
+batch_size: 32
+bi_encoder: true
+layers: 2
+dropout_prob: 0.2
+cell_type: LSTM
+cell_size: 64
+time_major: true
+attention: luong
+optimizer: MomentumOptimizer
+optimizer_kwargs:
+    momentum: 0.5
+log_dir: experiments/reinflection
+save_all_gradients: false
+train_schedule:
+    - {learning_rate: 1.0, epochs: 500}
+    - {learning_rate: 0.1, epochs: 1000}
+    - {learning_rate: 0.01, epochs: 1000}
+    - {learning_rate: 0.001, epochs: 10000, logstep: 100}
+    - {learning_rate: 0.0001, epochs: 10000, logstep: 100}
+early_stopping:
+    patience: 5
+    threshold: .001
