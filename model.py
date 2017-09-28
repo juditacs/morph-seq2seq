@@ -277,8 +277,9 @@ class Seq2seqTrainModel(object):
             d = {'train_loss': self.train_loss,
                  'val_loss': self.val_loss}
             yaml.dump(d, f)
+        self.dataset.save_vocabs()
 
-    def do_greedy_decode(self):
+    def do_greedy_decode(self, outfile=None):
         self.dataset.create_inverse_vocabs()
         decoded = []
         while len(decoded) < self.config.test_size:
@@ -287,8 +288,9 @@ class Seq2seqTrainModel(object):
                     self.test_graph.greedy_outputs.sample_id])
             decoded.extend(self.decode_batch(input_ids, output_ids))
         decoded = decoded[:self.config.test_size]
-        test_fn = os.path.join(self.config.log_dir, 'test.out')
-        with open(test_fn, 'w') as f:
+        if outfile is None:
+            outfile = os.path.join(self.config.log_dir, 'test.out')
+        with open(outfile, 'w') as f:
             f.write('\n'.join(
                 '{}\t{}'.format(dec[0], dec[1]) for dec in decoded
             ))
@@ -314,3 +316,18 @@ class Seq2seqTrainModel(object):
                                      if c not in skip_symbols)
             decoded.append((input_decoded, output_decoded))
         return decoded
+
+
+class Seq2seqInferenceModel(Seq2seqTrainModel):
+    def create_model(self):
+        self.test_graph = self.create_graph(
+            reuse=False, data=self.dataset.test, build_inf=True)
+        self.sess = tf.Session()
+        self.dataset.run_initializers(self.sess)
+        self.sess.run(tf.global_variables_initializer())
+        saver = tf.train.Saver()
+        saver.restore(self.sess, self.config.config_dir + "/model")
+
+    def run_inference(self, outfile):
+        logging.info("Running inference")
+        self.do_greedy_decode(outfile=outfile)
