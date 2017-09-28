@@ -67,3 +67,12 @@ class Config(object):
         d = {k: getattr(self, k, None) for k in self.__slots__}
         with open(fn, 'w') as f:
             yaml.dump(d, f)
+
+
+class InferenceConfig(Config):
+    @classmethod
+    def from_config_dir(cls, config_dir):
+        yaml_fn = os.path.join(config_dir, 'config.yaml')
+        cfg = cls.from_yaml(yaml_fn)
+        cfg.config_dir = config_dir
+        return cfg
