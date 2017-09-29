@@ -180,8 +180,12 @@ class Seq2seqTrainModel(object):
             learning_rate = tf.placeholder(
                 dtype=tf.float32, name="learning_rate")
             # max_global_norm = tf.placeholder(dtype=tf.float32, name="max_global_norm")
-            optimizer = getattr(tf.train, self.config.optimizer)(
-                learning_rate, **self.config.optimizer_kwargs)
+            try:
+                optimizer = getattr(tf.train, self.config.optimizer)(
+                    learning_rate, **self.config.optimizer_kwargs)
+            except AttributeError:
+                optimizer = getattr(tf.train, self.config.optimizer)(
+                    learning_rate)
             params = tf.trainable_variables()
             gradients = tf.gradients(loss, params)
             gradients, _ = tf.clip_by_global_norm(gradients, 5.0)
