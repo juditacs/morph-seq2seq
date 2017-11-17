@@ -1,0 +1,26 @@
+train_file: /mnt/permanent/home/judit/sandbox/peterng_sample.txt
+dev_file: /mnt/permanent/home/judit/sandbox/peterng_sample.txt
+test_file: /mnt/permanent/home/judit/sandbox/peterng_sample.txt
+infer_vocab: true
+share_vocab: false
+src_maxlen: 50
+tgt_maxlen: 50 
+src_embedding_dim: 40
+tgt_embedding_dim: 40
+batch_size: 64
+bi_encoder: true
+layers: 2
+dropout_prob: 0.2
+cell_type: LSTM
+cell_size: 128
+time_major: true
+attention: luong
+optimizer: AdamOptimizer
+log_dir: experiments/peterng_sample
+save_all_gradients: false
+train_schedule:
+    - {learning_rate: 0.001, epochs: 1000, logstep: 100}
+    - {learning_rate: 0.0001, epochs: 10000, logstep: 100}
+early_stopping:
+    patience: 10
+    threshold: .000
