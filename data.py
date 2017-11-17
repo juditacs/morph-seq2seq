@@ -182,6 +182,8 @@ class InferenceDataset(Dataset):
             self.tgt_vocab_size = len(self.tgt_vocab)
 
     def load_and_preprocess_data(self):
+        with open(self.config.test_fn) as f:
+            self.config.test_size = len(f.readlines())
         dataset = tf.contrib.data.TextLineDataset(self.config.test_fn)
         dataset = dataset.map(lambda s: tf.string_split(
             [s], delimiter='\t').values[0])
@@ -198,6 +200,7 @@ class InferenceDataset(Dataset):
         dataset = dataset.map(
             lambda src, tgt_in, tgt_out:
                 (src, tgt_in, tgt_out, tf.size(src), tf.size(tgt_in)))
+        dataset = dataset.repeat()
         batched = dataset.padded_batch(
             self.config.batch_size,
             padded_shapes=(
