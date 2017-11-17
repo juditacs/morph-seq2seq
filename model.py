@@ -297,7 +297,7 @@ class Seq2seqTrainModel(object):
         with open(outfile, 'w') as f:
             f.write('\n'.join(
                 '{}\t{}'.format(dec[0], dec[1]) for dec in decoded
-            ))
+            ) + '\n')
 
     def decode_batch(self, input_ids, output_ids):
         skip_symbols = ('PAD',)
@@ -307,7 +307,7 @@ class Seq2seqTrainModel(object):
             output_sample = output_ids[sample_i]
             input_decoded = [self.dataset.src_inv_vocab[s]
                              for s in input_sample]
-            input_decoded = ''.join(c for c in input_decoded
+            input_decoded = ' '.join(c for c in input_decoded
                                     if c not in skip_symbols)
             output_decoded = [self.dataset.tgt_inv_vocab[s]
                               for s in output_sample]
@@ -316,7 +316,7 @@ class Seq2seqTrainModel(object):
             except ValueError:  # EOS not in list
                 eos_idx = len(output_decoded)
             output_decoded = output_decoded[:eos_idx]
-            output_decoded = ''.join(c for c in output_decoded
+            output_decoded = ' '.join(c for c in output_decoded
                                      if c not in skip_symbols)
             decoded.append((input_decoded, output_decoded))
         return decoded
