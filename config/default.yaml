@@ -6,9 +6,7 @@ cell_type: LSTM
 cell_size: 8
 time_major: true
 attention: null
-optimizer: MomentumOptimizer
-optimizer_kwargs:
-    momentum: 0.5
+optimizer: GradientDescentOptimizer
 save_all_gradients: false
 generate_log_dir: true
 test_size: derive
