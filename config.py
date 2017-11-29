@@ -24,7 +24,8 @@ class Config(object):
         'test_size', 'src_vocab_file', 'tgt_vocab_file', 'infer_vocab',
         'early_stopping',
     )
-    default_fn = os.path.join('config', 'default.yaml')
+    default_fn = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), 'config', 'default.yaml')
 
     @staticmethod
     def load_defaults():
