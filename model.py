@@ -7,6 +7,7 @@
 # Distributed under terms of the MIT license.
 import os
 import yaml
+from sys import stdout
 import logging
 from collections import namedtuple
 import tensorflow as tf
@@ -183,7 +184,7 @@ class Seq2seqTrainModel(object):
             try:
                 optimizer = getattr(tf.train, self.config.optimizer)(
                     learning_rate, **self.config.optimizer_kwargs)
-            except AttributeError:
+            except (AttributeError, TypeError):
                 optimizer = getattr(tf.train, self.config.optimizer)(
                     learning_rate)
             params = tf.trainable_variables()
@@ -292,12 +293,21 @@ class Seq2seqTrainModel(object):
                     self.test_graph.greedy_outputs.sample_id])
             decoded.extend(self.decode_batch(input_ids, output_ids))
         decoded = decoded[:self.config.test_size]
-        if outfile is None:
-            outfile = os.path.join(self.config.log_dir, 'test.out')
-        with open(outfile, 'w') as f:
-            f.write('\n'.join(
-                '{}\t{}'.format(dec[0], dec[1]) for dec in decoded
+        if hasattr(self, 'is_inference') and self.is_inference is True:
+            if outfile is None:
+                outstream = stdout
+            else:
+                outstream = open(outfile, 'w')
+            outstream.write('\n'.join(
+                '{}\t{}'.format(dec[0], dec[1]).replace(" ", "") for dec in decoded
             ) + '\n')
+        else:
+            if outfile is None:
+                outfile = os.path.join(self.config.log_dir, 'test.out')
+            with open(outfile, 'w') as f:
+                f.write('\n'.join(
+                    '{}\t{}'.format(dec[0], dec[1]) for dec in decoded
+                ) + '\n')
 
     def decode_batch(self, input_ids, output_ids):
         skip_symbols = ('PAD',)
@@ -324,6 +334,7 @@ class Seq2seqTrainModel(object):
 
 class Seq2seqInferenceModel(Seq2seqTrainModel):
     def create_model(self):
+        self.is_inference = True
         self.test_graph = self.create_graph(
             reuse=False, data=self.dataset.test, build_inf=True)
         self.sess = tf.Session()
