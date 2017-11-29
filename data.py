@@ -6,6 +6,8 @@
 #
 # Distributed under terms of the MIT license.
 import os
+import tempfile
+from sys import stdin
 
 import tensorflow as tf
 from tensorflow.python.ops import lookup_ops
@@ -181,10 +183,19 @@ class InferenceDataset(Dataset):
                 tf.constant(self.tgt_vocab), default_value=Dataset.UNK)
             self.tgt_vocab_size = len(self.tgt_vocab)
 
+    def set_test_fn(self):
+        if self.config.test_fn is None:
+            with tempfile.NamedTemporaryFile("wt", delete=False) as test_fn:
+                for line in stdin:
+                    test_fn.write(" ".join(line))
+            return test_fn.name
+        return self.config.test_fn
+
     def load_and_preprocess_data(self):
-        with open(self.config.test_fn) as f:
+        test_fn = self.set_test_fn()
+        with open(test_fn) as f:
             self.config.test_size = len(f.readlines())
-        dataset = tf.contrib.data.TextLineDataset(self.config.test_fn)
+        dataset = tf.contrib.data.TextLineDataset(test_fn)
         dataset = dataset.map(lambda s: tf.string_split(
             [s], delimiter='\t').values[0])
         dataset = dataset.map(lambda s: tf.string_split(
