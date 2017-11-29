@@ -1,0 +1,28 @@
+train_file: /mnt/permanent/home/judit/data/szeged/morph_analysis_s2s/types.train
+dev_file: /mnt/permanent/home/judit/data/szeged/morph_analysis_s2s/types.dev
+test_file: /mnt/permanent/home/judit/data/szeged/morph_analysis_s2s/types.test
+infer_vocab: true
+share_vocab: false
+src_maxlen: 50
+tgt_maxlen: 60 
+src_embedding_dim: 20
+tgt_embedding_dim: 20
+batch_size: 128
+bi_encoder: true
+layers: 2
+dropout_prob: 0.2
+cell_type: LSTM
+cell_size: 128
+time_major: true
+attention: luong
+optimizer: AdamOptimizer
+optimizer_kwargs: {}
+log_dir: experiments/morph_ana_full
+save_all_gradients: false
+train_schedule:
+    - {learning_rate: 0.01, epochs: 1000, logstep: 100}
+    - {learning_rate: 0.001, epochs: 1000, logstep: 100}
+    - {learning_rate: 0.0001, epochs: 1000, logstep: 100}
+early_stopping:
+    patience: 10
+    threshold: .000
