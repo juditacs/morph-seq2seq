@@ -295,12 +295,14 @@ class Seq2seqTrainModel(object):
         decoded = decoded[:self.config.test_size]
         if hasattr(self, 'is_inference') and self.is_inference is True:
             if outfile is None:
-                outstream = stdout
+                stdout.write('\n'.join(
+                    '{}\t{}'.format(dec[0], dec[1]).replace(" ", "") for dec in decoded
+                ) + '\n')
             else:
                 outstream = open(outfile, 'w')
-            outstream.write('\n'.join(
-                '{}\t{}'.format(dec[0], dec[1]).replace(" ", "") for dec in decoded
-            ) + '\n')
+                outstream.write('\n'.join(
+                    '{}\t{}'.format(dec[0], dec[1]) for dec in decoded
+                ) + '\n')
         else:
             if outfile is None:
                 outfile = os.path.join(self.config.log_dir, 'test.out')
