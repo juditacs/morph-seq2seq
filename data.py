@@ -191,11 +191,15 @@ class InferenceDataset(Dataset):
             return test_fn.name
         return self.config.test_fn
 
+    def clean_up_test_file(self):
+        if self.config.test_fn is None:
+            os.remove(self.test_fn)
+
     def load_and_preprocess_data(self):
-        test_fn = self.set_test_fn()
-        with open(test_fn) as f:
+        self.test_fn = self.set_test_fn()
+        with open(self.test_fn) as f:
             self.config.test_size = len(f.readlines())
-        dataset = tf.contrib.data.TextLineDataset(test_fn)
+        dataset = tf.contrib.data.TextLineDataset(self.test_fn)
         dataset = dataset.map(lambda s: tf.string_split(
             [s], delimiter='\t').values[0])
         dataset = dataset.map(lambda s: tf.string_split(
