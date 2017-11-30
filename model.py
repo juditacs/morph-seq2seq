@@ -348,3 +348,4 @@ class Seq2seqInferenceModel(Seq2seqTrainModel):
     def run_inference(self, outfile):
         logging.info("Running inference")
         self.do_greedy_decode(outfile=outfile)
+        self.dataset.clean_up_test_file()
