@@ -38,9 +38,11 @@ class Seq2seqTrainModel(object):
         with tf.variable_scope(scope, reuse=reuse):
             if self.config.cell_type == 'LSTM':
                 cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.cell_size)
-                if self.config.dropout_prob > 0:
-                    cell = tf.contrib.rnn.DropoutWrapper(
-                        cell, input_keep_prob=1.0-self.config.dropout_prob)
+            elif self.config.cell_type == 'GRU':
+                cell = tf.nn.rnn_cell.GRUCell(self.config.cell_size)
+            if self.config.dropout_prob > 0:
+                cell = tf.contrib.rnn.DropoutWrapper(
+                    cell, input_keep_prob=1.0-self.config.dropout_prob)
             return cell
 
     def create_graph(self, reuse, data, build_inf=False):
